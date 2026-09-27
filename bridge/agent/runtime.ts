@@ -77,6 +77,8 @@ type Turn = {
   responding: boolean
   /** A text block ended; the next one needs a separator so sentences don't fuse. */
   needsBreak: boolean
+  /** The model declined and no fallback model retried it. */
+  refused: boolean
   running: Map<string, RunningTool>
   abort: AbortController
 }
@@ -111,6 +113,9 @@ const ASSISTANT_ERRORS: Partial<Record<SDKAssistantMessageError, { code: ErrorCo
   invalid_request: { code: 'turn_failed', message: 'Claude rejected that request.' },
   server_error: { code: 'turn_failed', message: 'Claude had a server error. Try again.' },
 }
+
+/** A refusal is not a failure to retry: say so plainly. */
+const REFUSED = { code: 'turn_failed' as const, message: "I can't help with that one." }
 
 const DEFAULT_SETTLE_CAP_MS = 2_500
 
@@ -201,6 +206,7 @@ export class AgentSession {
       interrupted: false,
       responding: false,
       needsBreak: false,
+      refused: false,
       running: new Map(),
       abort: new AbortController(),
     })
@@ -373,6 +379,7 @@ export class AgentSession {
 
     const options: Options = {
       model: config.model,
+      ...(config.fallbackModel ? { fallbackModel: config.fallbackModel } : {}),
       effort: config.effort,
       systemPrompt: this.options.systemPrompt,
       tools: builtins,
@@ -511,7 +518,9 @@ export class AgentSession {
 
         const failed = message.subtype !== 'success' || message.is_error
         let failure: { code: ErrorCode; message: string } | undefined
-        if (!turn.interrupted && failed) {
+        if (!turn.interrupted && turn.refused) {
+          failure = REFUSED
+        } else if (!turn.interrupted && failed) {
           const resultText = message.subtype === 'success' ? message.result : message.errors.join(' ')
           failure =
             (this.lastAssistantError && ASSISTANT_ERRORS[this.lastAssistantError]) ||
@@ -521,7 +530,7 @@ export class AgentSession {
             }
           this.logger.warn('turn.failed', { turnId: turn.id, subtype: message.subtype, detail: resultText.slice(0, 300) })
         }
-        if (!turn.interrupted && !failed && !turn.answer.trim() && message.subtype === 'success' && message.result) {
+        if (!turn.interrupted && !turn.refused && !failed && !turn.answer.trim() && message.subtype === 'success' && message.result) {
           // Some builds deliver the final text only in the result.
           turn.answer = message.result
           this.emit({ type: 'assistant_text', turnId: turn.id, delta: message.result })
@@ -550,6 +559,28 @@ export class AgentSession {
       }
 
       case 'system': {
+        if (message.subtype === 'model_refusal_no_fallback') {
+          const turn = this.turnFor({})
+          if (turn) turn.refused = true
+          this.logger.warn('turn.refused', { turnId: turn?.id, category: message.api_refusal_category ?? null })
+          return
+        }
+        if (message.subtype === 'model_refusal_fallback') {
+          // The refused partial is retracted and the turn re-runs on the
+          // fallback model; the final text (turn_complete) must not include it.
+          const turn = this.turnFor({})
+          if (turn && message.scope !== 'local') {
+            turn.answer = ''
+            turn.needsBreak = false
+          }
+          this.logger.info('turn.refusal_fallback', {
+            turnId: turn?.id,
+            from: message.original_model,
+            to: message.fallback_model,
+            category: message.api_refusal_category ?? null,
+          })
+          return
+        }
         if (message.subtype === 'init') {
           const servers = message.mcp_servers.map((s) => `${s.name}:${s.status}`)
           this.logger.info('session.ready', { model: message.model, tools: message.tools.length, servers })

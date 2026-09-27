@@ -57,6 +57,15 @@ describe('parseConfig', () => {
     })
   })
 
+  it('falls back to another model unless told not to', () => {
+    expect(parseConfig({}).fallbackModel).toBe('claude-opus-4-8')
+    expect(parseConfig({ CLAP_FALLBACK_MODEL: 'none' }).fallbackModel).toBeNull()
+    expect(parseConfig({ CLAP_FALLBACK_MODEL: 'claude-sonnet-5' }).fallbackModel).toBe('claude-sonnet-5')
+    // A model cannot fall back to itself.
+    expect(parseConfig({ CLAP_MODEL: 'claude-opus-4-8' }).fallbackModel).toBeNull()
+    expect(problems({ CLAP_FALLBACK_MODEL: 'not a model' })[0]).toMatch(/CLAP_FALLBACK_MODEL/)
+  })
+
   it('validates the wake phrase', () => {
     expect(parseConfig({ CLAP_WAKE_PHRASE: '  Hello   There ' }).wakePhrase).toBe('hello there')
     expect(problems({ CLAP_WAKE_PHRASE: 'clap' })[0]).toMatch(/single word/)

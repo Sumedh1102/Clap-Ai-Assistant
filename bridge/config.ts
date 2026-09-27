@@ -36,6 +36,8 @@ export type BridgeConfig = {
   allowNoOrigin: boolean
 
   model: string
+  /** Used when the model is overloaded or unavailable, and to retry a refused turn. Null: none. */
+  fallbackModel: string | null
   effort: Effort
   maxTurns: number
   enableWebSearch: boolean
@@ -152,10 +154,19 @@ export function parseConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig 
   if (!LOOPBACK_HOSTS.has(host)) allowedHosts.add(`${host.includes(':') ? `[${host}]` : host}:${port}`)
 
   // --- agent --------------------------------------------------------------
+  const MODEL_ID = /^[a-z0-9][a-z0-9.\-[\]]{1,80}$/i
   const model = text('CLAP_MODEL') ?? 'claude-opus-5'
-  if (!/^[a-z0-9][a-z0-9.\-[\]]{1,80}$/i.test(model)) {
+  if (!MODEL_ID.test(model)) {
     problems.push(`CLAP_MODEL="${model}" does not look like a model id (e.g. claude-opus-5).`)
   }
+  const rawFallback = text('CLAP_FALLBACK_MODEL') ?? 'claude-opus-4-8'
+  let fallbackModel: string | null = ['none', 'off', '0'].includes(rawFallback.toLowerCase()) ? null : rawFallback
+  if (fallbackModel && !MODEL_ID.test(fallbackModel)) {
+    problems.push(`CLAP_FALLBACK_MODEL="${fallbackModel}" does not look like a model id (or "none").`)
+    fallbackModel = null
+  }
+  // A model cannot fall back to itself.
+  if (fallbackModel === model) fallbackModel = null
 
   // --- wake phrase ----------------------------------------------------------
   const wakePhrase = (text('CLAP_WAKE_PHRASE') ?? DEFAULT_WAKE_PHRASE).toLowerCase().replace(/\s+/g, ' ')
@@ -209,6 +220,7 @@ export function parseConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig 
     allowedHosts: [...allowedHosts],
     allowNoOrigin: flag('CLAP_ALLOW_NO_ORIGIN', false),
     model,
+    fallbackModel,
     effort: choice<Effort>('CLAP_EFFORT', EFFORT_LEVELS, 'medium'),
     maxTurns: int('CLAP_MAX_TURNS', 20, 1, 100),
     enableWebSearch: flag('CLAP_ENABLE_WEB_SEARCH', true),

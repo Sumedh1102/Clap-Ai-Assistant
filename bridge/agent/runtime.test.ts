@@ -67,6 +67,8 @@ describe('SDK options', () => {
     expect(options.canUseTool).toBeTypeOf('function')
     expect(options.hooks?.PreToolUse).toHaveLength(1)
     expect(options.env?.ELEVENLABS_API_KEY).toBeUndefined()
+    expect(options.model).toBe('claude-opus-5')
+    expect(options.fallbackModel).toBe('claude-opus-4-8')
     expect(options.env?.PATH).toBe('/usr/bin')
     // Only one Claude Code process per session.
     session.warmUp()
@@ -298,6 +300,44 @@ describe('tools', () => {
     sdk.last.send(frame.result(user!.uuid))
     await settle()
     expect(of('tool_error')).toEqual([expect.objectContaining({ toolUseId: 'toolu_1', error: 'Stopped before it finished.' })])
+  })
+})
+
+describe('refusals', () => {
+  it('says plainly that it cannot help, rather than "try again"', async () => {
+    const { session, sdk, of } = setup()
+    session.submit('t1', 'something it declines', 'voice')
+    const user = await sdk.last.nextUser()
+    sdk.last.send(
+      frame.system('model_refusal_no_fallback', { original_model: 'claude-opus-5', api_refusal_category: 'cyber' }),
+      frame.result(user!.uuid, { subtype: 'success', is_error: true, result: 'API Error: unable to respond to this request' }),
+    )
+    await settle()
+    expect(of('error')).toEqual([expect.objectContaining({ turnId: 't1', message: "I can't help with that one." })])
+    // The raw refusal text is not read out as if it were the answer.
+    expect(of('assistant_text')).toEqual([])
+    expect(of('turn_complete')).toEqual([expect.objectContaining({ turnId: 't1', text: '' })])
+  })
+
+  it('drops a refused partial when the fallback model takes the turn', async () => {
+    const { session, sdk, of } = setup()
+    session.submit('t1', 'a borderline question', 'voice')
+    const user = await sdk.last.nextUser()
+    sdk.last.send(
+      frame.text('Refused part', user!.uuid),
+      frame.system('model_refusal_fallback', {
+        trigger: 'refusal',
+        direction: 'retry',
+        scope: 'session',
+        original_model: 'claude-opus-5',
+        fallback_model: 'claude-opus-4-8',
+      }),
+      frame.text('The real answer.'),
+      frame.result(user!.uuid),
+    )
+    await settle()
+    expect(of('turn_complete')).toEqual([expect.objectContaining({ turnId: 't1', text: 'The real answer.', interrupted: false })])
+    expect(of('error')).toEqual([])
   })
 })
 

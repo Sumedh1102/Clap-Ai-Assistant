@@ -197,6 +197,10 @@ export const frame = {
     } as unknown as SDKMessage
   },
 
+  system(subtype: string, fields: Record<string, unknown> = {}): SDKMessage {
+    return { ...common(), type: 'system', subtype, ...fields } as unknown as SDKMessage
+  },
+
   result(stamp: string | undefined, fields: { subtype?: string; result?: string; errors?: string[]; is_error?: boolean } = {}): SDKMessage {
     const subtype = fields.subtype ?? 'success'
     return {

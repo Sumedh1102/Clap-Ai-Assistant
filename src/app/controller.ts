@@ -443,7 +443,10 @@ export class ClapController {
         return
       case 'turn_complete':
         if (event.turnId !== current) return
-        hud.finishClap(event.turnId, { interrupted: event.interrupted })
+        hud.finishClap(event.turnId, {
+          interrupted: event.interrupted,
+          ...(event.text ? { text: sanitizeForDisplay(event.text, 200_000) } : {}),
+        })
         this.dispatch({ type: 'TURN_COMPLETE', turnId: event.turnId, interrupted: event.interrupted })
         this.drainSpeech(event.turnId)
         return

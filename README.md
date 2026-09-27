@@ -64,8 +64,9 @@ with its default, and none is required. The ones people change most:
 
 | Variable | Default | |
 |---|---|---|
-| `CLAP_MODEL` | `claude-opus-5` | Claude model |
-| `CLAP_EFFORT` | `medium` | `low` … `max` |
+| `CLAP_MODEL` | `claude-opus-5` | Claude model (`claude-opus-5-5` to try the newer Opus) |
+| `CLAP_EFFORT` | `medium` | `low` … `max`; `low` answers about a second sooner |
+| `CLAP_FALLBACK_MODEL` | `claude-opus-4-8` | Used if the main model is overloaded, and to retry a request it declines; `none` to turn off |
 | `CLAP_WAKE_PHRASE` | `hey clap` | Two to five words |
 | `CLAP_POLICY_MEDIUM` | `allow` | `allow`, `confirm` or `deny` medium-risk actions |
 | `CLAP_POLICY_HIGH` | `confirm` | `confirm` or `deny`; never `allow` |

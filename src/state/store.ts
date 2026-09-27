@@ -115,7 +115,12 @@ export const hud = {
     })
   },
 
-  finishClap(turnId: string, patch: Partial<Pick<TranscriptEntry, 'interrupted' | 'error'>>) {
+  /**
+   * End CLAP's entry for a turn. `patch.text`, when given, is the bridge's
+   * final answer and replaces the streamed deltas (a refused partial that the
+   * model's fallback retracted is not part of it).
+   */
+  finishClap(turnId: string, patch: Partial<Pick<TranscriptEntry, 'text' | 'interrupted' | 'error'>>) {
     set((s) => {
       const id = `c-${turnId}`
       const index = s.transcript.findIndex((e) => e.id === id)
