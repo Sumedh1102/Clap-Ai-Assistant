@@ -20,6 +20,8 @@ class ClapLevelMeter extends AudioWorkletProcessor {
       for (let i = 0; i < channel.length; i++) this.sum += channel[i] * channel[i]
       this.count += channel.length
       if (this.count >= this.window) {
+        // A MessagePort, not window.postMessage: there is no target origin.
+        // oxlint-disable-next-line unicorn/require-post-message-target-origin
         this.port.postMessage(Math.sqrt(this.sum / this.count))
         this.sum = 0
         this.count = 0

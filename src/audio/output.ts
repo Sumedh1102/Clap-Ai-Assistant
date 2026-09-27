@@ -107,7 +107,7 @@ class AudioOutput {
 
   /** Fade out everything playing (barge-in). */
   stopAll(fadeMs = 80): void {
-    for (const entry of [...this.playing]) entry.stop(fadeMs)
+    for (const entry of this.playing) entry.stop(fadeMs)
   }
 
   isPlaying(): boolean {

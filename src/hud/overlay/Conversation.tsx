@@ -78,7 +78,7 @@ export function History() {
   const transcript = useHud((s) => s.transcript)
   const end = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (open) end.current?.scrollIntoView({ block: 'end' })
+    if (open && transcript.length) end.current?.scrollIntoView({ block: 'end' })
   }, [open, transcript.length])
   if (!open) return null
   return (

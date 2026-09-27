@@ -75,7 +75,7 @@ export class SessionRegistry {
   }
 
   closeAll(): void {
-    for (const id of [...this.entries.keys()]) this.dispose(id)
+    for (const id of this.entries.keys()) this.dispose(id)
   }
 
   get size(): number {

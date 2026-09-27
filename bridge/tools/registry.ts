@@ -105,6 +105,7 @@ const MAX_SUMMARY_CHARS = 200
 
 /** Trim model-derived text for display: no control characters, bounded length. */
 export function cleanSummary(text: string): string {
+  // oxlint-disable-next-line no-control-regex -- stripping them is the point
   const flat = text.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim()
   return flat.length > MAX_SUMMARY_CHARS ? `${flat.slice(0, MAX_SUMMARY_CHARS - 1)}…` : flat
 }

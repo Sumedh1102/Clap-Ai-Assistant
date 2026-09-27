@@ -24,7 +24,7 @@ export class VoiceUpstreamError extends Error {
 
 type FetchFn = typeof fetch
 
-async function detail(res: Response): Promise<string> {
+async function upstreamDetail(res: Response): Promise<string> {
   try {
     return (await res.text()).slice(0, 300)
   } catch {
@@ -74,7 +74,7 @@ export class ElevenLabs {
       }),
       signal,
     })
-    if (!res.ok || !res.body) throw new VoiceUpstreamError(res.status, await detail(res))
+    if (!res.ok || !res.body) throw new VoiceUpstreamError(res.status, await upstreamDetail(res))
     return { body: res.body, contentType: res.headers.get('content-type') ?? 'audio/mpeg' }
   }
 
@@ -88,7 +88,7 @@ export class ElevenLabs {
       body: form,
       signal,
     })
-    if (!res.ok) throw new VoiceUpstreamError(res.status, await detail(res))
+    if (!res.ok) throw new VoiceUpstreamError(res.status, await upstreamDetail(res))
     const data = (await res.json()) as { text?: unknown }
     return typeof data.text === 'string' ? data.text.trim() : ''
   }

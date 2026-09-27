@@ -9,6 +9,7 @@
  *     otherwise read aloud character by character.
  */
 
+// oxlint-disable-next-line no-control-regex -- stripping them is the point
 const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g
 /** Bidi overrides/isolates and zero-width characters used for spoofing. */
 const INVISIBLE = /[​-‏‪-‮⁠-⁤⁦-⁩﻿]/g
@@ -18,7 +19,7 @@ export function sanitizeForDisplay(text: string, maxLength = 20_000): string {
   return clean.length > maxLength ? `${clean.slice(0, maxLength)}…` : clean
 }
 
-const EMOJI = /[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{FE0F}\u{200D}]/gu
+const EMOJI = /\p{Extended_Pictographic}|[\u{1F1E6}-\u{1F1FF}]|\u{FE0F}|\u{200D}/gu
 
 export function toSpeakable(text: string): string {
   return (

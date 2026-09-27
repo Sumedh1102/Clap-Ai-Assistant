@@ -131,7 +131,7 @@ export class ConfirmationBroker {
   /** Deny everything a session is waiting on (interrupt, disconnect, close). */
   cancelSession(sessionId: string): number {
     let cancelled = 0
-    for (const pending of [...this.pending.values()]) {
+    for (const pending of this.pending.values()) {
       if (pending.sessionId !== sessionId) continue
       pending.finish({ approved: false, reason: 'cancelled' })
       cancelled++

@@ -103,6 +103,7 @@ export function htmlToText(html: string): { title: string; text: string } {
     .replace(TAG, ' ')
   const text = decodeEntities(body)
     // Control characters other than newline and tab never belong in the result.
+    // oxlint-disable-next-line no-control-regex -- stripping them is the point
     .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, ' ')
     .split('\n')
     .map(collapse)

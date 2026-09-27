@@ -63,7 +63,7 @@ export class BrowserVoiceProvider implements VoiceProvider {
       .getVoices()
       .map((v) => ({ v, s: scoreVoice(v, this.lang) }))
       .filter((x) => x.s > 0)
-      .sort((a, b) => b.s - a.s)
+      .toSorted((a, b) => b.s - a.s)
       .map((x) => x.v)
   }
 
