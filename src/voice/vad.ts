@@ -111,7 +111,16 @@ export class VadDetector {
     }
 
     if (this.smooth > this.threshold * k.releaseRatio) this.lastLoud = t
-    if (t - this.lastLoud >= k.silenceMs || t - this.startedAt >= k.maxMs) {
+    const cut = t - this.startedAt >= k.maxMs
+    if (t - this.lastLoud >= k.silenceMs || cut) {
+      if (cut) {
+        // maxMs without one silenceMs pause is not a person talking: it is a
+        // TV, a fan, a vacuum. The floor cannot adapt during a segment, so
+        // take this level as the room's new floor now; otherwise it would
+        // re-trigger at once, barge in on CLAP every maxMs, and be uploaded
+        // for transcription. A quiet room brings the floor back down.
+        this.floor = Math.max(this.floor, (this.smooth / k.triggerOverFloor) * 1.25)
+      }
       this.speaking = false
       this.armedAt = 0
       return 'end'

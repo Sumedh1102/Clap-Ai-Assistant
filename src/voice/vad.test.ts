@@ -63,8 +63,36 @@ describe('VadDetector', () => {
       [QUIET, 1_000],
       [SPEECH, 1_500],
     ])
-    // Speech that carries on past the cut starts a new segment.
-    expect(events.map(([e]) => e)).toEqual(['onset', 'start', 'end', 'onset', 'start'])
+    // Sound that carries on past the cut is the room, not a speaker.
+    expect(events.map(([e]) => e)).toEqual(['onset', 'start', 'end'])
+  })
+
+  it('learns sustained noise instead of hearing it as endless speech', () => {
+    const vad = new VadDetector()
+    const tv = 0.05
+    // A TV comes on: one long segment, then silence from the detector.
+    const events = feed(vad, [
+      [QUIET, 2_000],
+      [tv, 60_000],
+    ])
+    expect(events.map(([e]) => e)).toEqual(['onset', 'start', 'end'])
+    expect(events[2]![1] - events[1]![1]).toBeLessThanOrEqual(DEFAULT_VAD.maxMs + FRAME_MS)
+    // Someone speaking up over it is still heard.
+    expect(feed(vad, [[0.3, 500]], 62_000).map(([e]) => e)).toEqual(['onset', 'start'])
+  })
+
+  it('hears ordinary speech again soon after the noise stops', () => {
+    const vad = new VadDetector()
+    feed(vad, [
+      [QUIET, 2_000],
+      [0.05, 25_000],
+    ])
+    // Three seconds of a quiet room, then normal speech.
+    const events = feed(vad, [
+      [QUIET, 3_000],
+      [SPEECH, 500],
+    ], 27_000)
+    expect(events.map(([e]) => e)).toEqual(['onset', 'start'])
   })
 
   it('adapts its floor to steady background noise', () => {
