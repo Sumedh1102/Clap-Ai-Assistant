@@ -24,3 +24,7 @@ voice-samples/
 .idea
 .DS_Store
 *.sw?
+
+# end-to-end test output
+test-results/
+playwright-report/

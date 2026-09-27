@@ -146,9 +146,17 @@ export class FakeQuery {
 
 export class FakeSdk {
   readonly queries: FakeQuery[] = []
+  private readonly onQuery: (query: FakeQuery) => void
+
+  /** @param onQuery called for each new Claude Code "process", e.g. to drive it automatically. */
+  constructor(onQuery: (query: FakeQuery) => void = () => {}) {
+    this.onQuery = onQuery
+  }
+
   readonly queryFn: QueryFn = ({ prompt, options }) => {
     const query = new FakeQuery(prompt, options)
     this.queries.push(query)
+    this.onQuery(query)
     return query as unknown as Query
   }
 

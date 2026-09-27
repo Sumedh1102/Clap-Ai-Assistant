@@ -30,6 +30,9 @@ Claude answer to a typed message.
 - ✅ `setup`, `doctor`, `start` scripts; `.env.example`; README
 - ✅ Tests: every security primitive and pure module, the agent runtime
   against a scripted SDK, and the bridge over real HTTP and WebSocket
+- ✅ End-to-end: the HUD in Chromium against the real bridge with a scripted
+  agent — typed turns, confirmations, interrupts, resume, layout, no-WebGL
+  fallback (`npm run test:e2e`)
 
 **Verify:** `npm run doctor` passes; `npm start`; type a question; the answer
 streams into the transcript; the HUD moves THINKING → SPEAKING/IDLE.

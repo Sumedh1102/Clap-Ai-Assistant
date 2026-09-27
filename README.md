@@ -118,6 +118,7 @@ npm run doctor      # check everything, change nothing
 npm run typecheck
 npm run lint
 npm test            # unit and integration tests (Vitest)
+npm run test:e2e    # the HUD in Chromium against the bridge, with a scripted agent
 npm run build       # typecheck + production build
 ```
 

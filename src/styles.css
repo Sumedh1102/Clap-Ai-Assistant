@@ -196,11 +196,15 @@ kbd {
 }
 
 .key-hints {
+  /* A row under the composer: pinned to a corner, it collides with the
+     centred stack on any screen narrower than ~1500 px. */
   position: absolute;
-  right: 32px;
-  bottom: 26px;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
   display: flex;
   gap: 14px;
+  white-space: nowrap;
   font-size: 11px;
   color: var(--faint);
 }
@@ -210,7 +214,7 @@ kbd {
 .bottom {
   position: absolute;
   left: 50%;
-  bottom: 26px;
+  bottom: 40px;
   transform: translateX(-50%);
   width: min(720px, 92vw);
   display: grid;
@@ -520,6 +524,10 @@ kbd {
   padding: 16px 18px 20px;
   border-radius: 16px;
   background: rgb(18 14 10 / 0.8);
+  /* The risk class on the card is for its border and accents; the generic
+     .risk-* colour would otherwise turn every word, both buttons included, red. */
+  color: var(--text);
+  --risk: var(--risk-medium);
   border: 1px solid var(--risk-medium);
   backdrop-filter: blur(14px);
   overflow: hidden;
@@ -527,6 +535,7 @@ kbd {
 }
 
 .confirm.risk-high {
+  --risk: var(--risk-high);
   border-color: var(--risk-high);
 }
 
@@ -568,15 +577,21 @@ kbd {
 }
 
 .confirm-actions .approve {
-  border-color: var(--risk-medium);
+  border-color: var(--risk);
+  background: color-mix(in srgb, var(--risk) 22%, transparent);
+  font-weight: 600;
 }
 
-.confirm.risk-high .approve {
-  border-color: var(--risk-high);
+.confirm-actions .decline {
+  color: var(--muted);
 }
 
 .confirm-actions button:hover {
   background: rgb(255 255 255 / 0.09);
+}
+
+.confirm-actions .approve:hover {
+  background: color-mix(in srgb, var(--risk) 32%, transparent);
 }
 
 .confirm-timer {
@@ -585,7 +600,7 @@ kbd {
   bottom: 0;
   width: 100%;
   height: 3px;
-  background: var(--risk-medium);
+  background: var(--risk);
   transform-origin: left;
   transition: transform 250ms linear;
 }
@@ -675,6 +690,9 @@ kbd {
   .key-hints,
   .connection .meta {
     display: none;
+  }
+  .bottom {
+    bottom: 20px;
   }
   .tasks,
   .history {

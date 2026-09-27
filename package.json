@@ -16,6 +16,7 @@
     "lint": "oxlint --deny-warnings",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "setup": "tsx scripts/setup.ts",
     "doctor": "tsx scripts/doctor.ts",
     "voice:inspect": "tsx scripts/inspect-voice.ts",
@@ -36,6 +37,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "@types/node": "^22.19.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

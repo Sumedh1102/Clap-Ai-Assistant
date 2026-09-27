@@ -19,12 +19,15 @@ npm run dev           # HUD on http://localhost:5173 (Vite, strictPort)
 npm run typecheck     # tsc -b over all three projects (no emit)
 npm run build         # typecheck + vite build
 npm run lint          # oxlint --deny-warnings (warnings fail)
-npm test              # vitest run
+npm test              # vitest run (unit + bridge integration, ~400 tests, seconds)
+npm run test:e2e      # Playwright: the real HUD in Chromium against the real bridge + a scripted agent (~1 min)
 npx vitest run src/voice/machine.test.ts     # one file
 npx vitest run -t "barge-in"                 # tests matching a name
 ```
 
 Tests are colocated `*.test.ts` in Vitest's default node environment; there is no `vitest.config.ts` (Vitest uses `vite.config.ts`). `AgentSession` is tested against the scripted SDK fake in `bridge/testing/fake-sdk.ts` (it consumes the prompt stream, sends frames, and calls the session's own hooks and `canUseTool`); `bridge/app.test.ts` runs the real HTTP/WebSocket server on an ephemeral port. `bridge/config.test.ts` fails if `.env.example` stops documenting a variable `config.ts` reads. The ElevenLabs adapter and `scripts/lib/voices.ts` are tested against mocked upstreams only (the environment's network policy blocks api.elevenlabs.io).
+
+`npm run test:e2e` (`playwright.config.ts`) starts `e2e/serve.ts` — the real bridge, `AgentSession` and Vite on ports 7799/5199, with `FakeSdk` driven by a scripted agent (`…delete…` asks for a high-risk confirmation, `…story…` streams until interrupted, anything else answers "Heard: …, That makes n this session") — and drives the HUD in `e2e/*.e2e.ts` (named so Vitest ignores them). `@playwright/test` is pinned to 1.56.1 because that matches the pre-installed Chromium build here; elsewhere run `npx playwright install chromium` once. Each test fails on any page error or `console.error`.
 
 Scripts share `scripts/lib/checks.ts` (the doctor's checks, judged by the bridge's own `parseConfig`). `start.ts` restarts a bridge that exits with code 70 (`server.ts` exits so after an uncaught exception), at most 3 times a minute; any other exit of either child stops both.
 
