@@ -1,0 +1,49 @@
+{
+  "name": "clap",
+  "private": true,
+  "version": "0.1.0",
+  "description": "CLAP — a voice-first personal AI assistant: a browser HUD, a local bridge, and a Claude agent runtime.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "start": "tsx scripts/start.ts",
+    "dev": "vite",
+    "bridge": "tsx bridge/server.ts",
+    "build": "npm run typecheck && vite build",
+    "typecheck": "tsc -b",
+    "lint": "oxlint --deny-warnings",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "setup": "tsx scripts/setup.ts",
+    "doctor": "tsx scripts/doctor.ts",
+    "voice:inspect": "tsx scripts/inspect-voice.ts",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.283",
+    "@react-three/fiber": "^9.8.1",
+    "@react-three/postprocessing": "^3.1.2",
+    "postprocessing": "^6.39.5",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "three": "^0.186.1",
+    "tsx": "^4.23.15",
+    "ws": "^8.22.0",
+    "zod": "^4.6.5",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxlint": "^1.85.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}

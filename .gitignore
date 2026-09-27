@@ -1,0 +1,26 @@
+# dependencies and build output
+node_modules
+dist
+dist-ssr
+*.tsbuildinfo
+
+# environment — never commit real secrets
+.env
+.env.*
+!.env.example
+
+# logs
+logs
+*.log
+npm-debug.log*
+
+# local CLAP data (memory, voice samples, session state)
+.clap/
+voice-samples/
+
+# editors and OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.sw?
