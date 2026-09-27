@@ -16,7 +16,7 @@ import { handleConnection } from './connection'
 import { SECURITY_HEADERS, sendJson } from './http'
 import type { Logger } from './logger'
 import type { ConfirmationBroker } from './permissions'
-import { corsHeaders, guardRequest, headerValue } from './security/http-guard'
+import { allowedOrigin, corsHeaders, guardRequest, headerValue } from './security/http-guard'
 import type { SessionRegistry } from './sessions'
 import type { ElevenLabs } from './voice/elevenlabs'
 import { handleStt, handleTts } from './voice/routes'
@@ -47,14 +47,13 @@ export function createBridge(deps: BridgeDeps): Bridge {
 
   async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const path = (req.url ?? '/').split('?')[0]
-    const origin = headerValue(req.headers.origin)
     const stateChanging = req.method !== 'GET' && req.method !== 'HEAD'
     const verdict = guardRequest(req, guard, stateChanging)
     if (!verdict.ok) {
       log.warn('http.refused', { method: req.method, path, reason: verdict.reason })
       return sendJson(res, verdict.status, { error: 'forbidden' })
     }
-    const cors = corsHeaders(origin)
+    const cors = corsHeaders(allowedOrigin(headerValue(req.headers.origin), guard))
 
     if (req.method === 'OPTIONS') {
       res.writeHead(204, { ...SECURITY_HEADERS, ...cors })

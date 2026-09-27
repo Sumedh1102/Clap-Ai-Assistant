@@ -47,9 +47,19 @@ export function checkOrigin(
     if (!requireOrigin || config.allowNoOrigin) return { ok: true }
     return { ok: false, status: 403, reason: 'missing Origin' }
   }
-  return config.allowedOrigins.includes(origin.toLowerCase().replace(/\/+$/, ''))
+  return allowedOrigin(origin, config)
     ? { ok: true }
     : { ok: false, status: 403, reason: `origin ${origin} not allowed` }
+}
+
+/**
+ * The request's Origin if it is on the allowlist, else undefined. A request
+ * can pass `checkOrigin` without one (a GET with no Origin, or `Origin: null`
+ * from a sandboxed frame); only an allowlisted origin may be reflected in CORS.
+ */
+export function allowedOrigin(origin: string | undefined, config: Pick<HttpGuardConfig, 'allowedOrigins'>): string | undefined {
+  if (!origin) return undefined
+  return config.allowedOrigins.includes(origin.toLowerCase().replace(/\/+$/, '')) ? origin : undefined
 }
 
 /** Both checks for one request, in the order that gives the clearest refusal. */
@@ -64,7 +74,7 @@ export function guardRequest(
 }
 
 /**
- * CORS headers reflecting an *already validated* origin. Never `*`: a wildcard
+ * CORS headers reflecting an origin from `allowedOrigin`. Never `*`: a wildcard
  * would let any page on the internet read what the bridge returns.
  */
 export function corsHeaders(origin: string | undefined): Record<string, string> {

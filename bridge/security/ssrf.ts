@@ -108,15 +108,15 @@ export function isBlockedIPv6(address: string): boolean {
   if (a === 0x64 && b === 0xff9b && c === 0 && d === 0 && e === 0 && f === 0) {
     return isBlockedIPv4(v4FromGroups(h7, h8)) // NAT64 well-known prefix
   }
-  if (a === 0x64 && b === 0xff9b && c === 1) return true // local-use NAT64
-  if (a === 0x100 && b === 0 && c === 0 && d === 0) return true // discard-only
+  if (a === 0x2002) return isBlockedIPv4(v4FromGroups(b, c)) // 6to4 embeds an IPv4
+  // Only global unicast (2000::/3) is public. Everything else — the rest of
+  // ::/8 (e.g. SIIT ::ffff:0:0/96), local-use NAT64, discard-only 100::/64,
+  // unique local fc00::/7, link-local, site-local, multicast — is refused,
+  // and so is any range assigned after this was written.
+  if ((a & 0xe000) !== 0x2000) return true
   if (a === 0x2001 && b < 0x200) return true // IETF assignments, incl. Teredo 2001::/32
   if (a === 0x2001 && b === 0xdb8) return true // documentation
-  if (a === 0x2002) return isBlockedIPv4(v4FromGroups(b, c)) // 6to4 embeds an IPv4
-  if ((a & 0xfe00) === 0xfc00) return true // unique local fc00::/7
-  if ((a & 0xffc0) === 0xfe80) return true // link-local
-  if ((a & 0xffc0) === 0xfec0) return true // site-local (deprecated)
-  if ((a & 0xff00) === 0xff00) return true // multicast
+  if (a === 0x3fff && b < 0x1000) return true // documentation 3fff::/20
   return false
 }
 

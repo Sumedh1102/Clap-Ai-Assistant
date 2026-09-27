@@ -25,7 +25,7 @@ const DROP_TAGS = new Set([
 ])
 
 const BLOCK_BREAK = /<\/?(?:p|div|section|article|main|header|aside|blockquote|pre|table|tr|ul|ol|dl|h[1-6]|figure|figcaption|details|summary|hr)\b[^<>]*>/gi
-const LINE_BREAK = /<(?:br|\/li|\/dt|\/dd|\/td|\/th)\b[^<>]*>/gi
+const LINE_BREAK = /<(?:br|\/dt|\/dd|\/td|\/th)\b[^<>]*>/gi
 const LIST_ITEM = /<li\b[^<>]*>/gi
 const TAG = /<[^<>]*>/g
 const OPEN_TAG = /<([a-z][a-z0-9]*)\b/gi

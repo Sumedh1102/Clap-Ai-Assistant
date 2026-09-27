@@ -4,10 +4,11 @@
  * A path is judged only after symlinks are resolved: `notes.txt` inside an
  * allowed root can be a link to ~/.ssh/id_ed25519, and checking the name the
  * model supplied would wave it through. For paths that do not exist yet (a
- * file about to be created) the parent directory is resolved instead.
+ * file about to be created) the parent directory is resolved instead, and a
+ * name that exists but does not resolve (a dangling symlink) is refused.
  */
 
-import { realpath } from 'node:fs/promises'
+import { lstat, realpath } from 'node:fs/promises'
 import { realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
@@ -72,6 +73,11 @@ export async function resolveWithinRoots(
     real = await realpath(absolute)
   } catch {
     if (mustExist) throw new PathError('not_found', 'That file does not exist.')
+    // The name exists but does not resolve: a dangling or looping symlink.
+    // Writing through it would create its target, wherever that is.
+    if (await lstat(absolute).then(() => true, () => false)) {
+      throw new PathError('invalid_path', 'That path is a link to something that does not exist.')
+    }
     try {
       real = join(await realpath(dirname(absolute)), basename(absolute))
     } catch {

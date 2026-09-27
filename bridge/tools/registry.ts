@@ -230,11 +230,13 @@ export class ToolRegistry {
     }
     const parsed = tool.parse(input)
     if (!parsed.ok) return { ok: false, error: `The request for ${tool.label} was invalid (${parsed.error}).` }
+    // An abort listener added now would never fire, so neither the race below
+    // nor the timeout could end the call: don't start it.
+    if (ctx.signal.aborted) return { ok: false, error: `${tool.label} was cancelled.` }
 
     const controller = new AbortController()
     const onAbort = () => controller.abort(ctx.signal.reason)
-    if (ctx.signal.aborted) controller.abort(ctx.signal.reason)
-    else ctx.signal.addEventListener('abort', onAbort, { once: true })
+    ctx.signal.addEventListener('abort', onAbort, { once: true })
     const timer = setTimeout(() => controller.abort(new ToolFailure(`${tool.label} took too long and was stopped.`)), tool.timeoutMs)
     const timing = ctx.logger.time('tool.execute', { tool: name, risk: tool.risk })
 
