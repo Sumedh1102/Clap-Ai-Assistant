@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useController } from '../../app/controller-context'
 import { useHud, type ToolActivity } from '../../state/store'
+import type { PendingConfirmation } from '../../voice/machine'
 
 const STATUS_ICON: Record<ToolActivity['status'], string> = {
   running: '◌',
@@ -49,14 +50,16 @@ function useCountdown(expiresAt: number | undefined): number {
 
 /** The bridge is asking before it acts. Approve with Y / click / "yes"; decline with N. */
 export function ConfirmCard() {
-  const controller = useController()
   const confirmation = useHud((s) => s.confirmation)
-  const [total, setTotal] = useState(1)
-  const remaining = useCountdown(confirmation?.expiresAt)
-  useEffect(() => {
-    if (confirmation) setTotal(Math.max(1, confirmation.expiresAt - Date.now()))
-  }, [confirmation])
   if (!confirmation) return null
+  // Keyed by request, so a new request starts a fresh countdown.
+  return <ConfirmDialog key={confirmation.requestId} confirmation={confirmation} />
+}
+
+function ConfirmDialog({ confirmation }: { confirmation: PendingConfirmation }) {
+  const controller = useController()
+  const [total] = useState(() => Math.max(1, confirmation.expiresAt - Date.now()))
+  const remaining = useCountdown(confirmation.expiresAt)
   return (
     <div className={`confirm risk-${confirmation.risk}`} role="alertdialog" aria-labelledby="confirm-title">
       <div className="confirm-head">

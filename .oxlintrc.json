@@ -20,8 +20,39 @@
         "allowConstantExport": true
       }
     ],
-    "typescript/no-explicit-any": "error"
+    // The automatic JSX runtime (React 17+) needs no React in scope.
+    "react/react-in-jsx-scope": "off",
+    "typescript/no-explicit-any": "error",
+    // Stylesheets are imported for their side effect.
+    "import/no-unassigned-import": [
+      "warn",
+      {
+        "allow": ["**/*.css"]
+      }
+    ],
+    // Compile-time constants injected by vite.config.ts `define`.
+    "no-underscore-dangle": [
+      "warn",
+      {
+        "allow": ["__CLAP_BRIDGE_URL__"]
+      }
+    ],
+    // Sockets, recognisers, utterances and ports here are created locally and
+    // given exactly one handler each; `port.onmessage =` also starts the port,
+    // which `addEventListener('message')` does not.
+    "unicorn/prefer-add-event-listener": "off"
   },
+  "overrides": [
+    {
+      // react-three-fiber is driven by mutating three.js objects and the shared
+      // `live` state inside useFrame, outside React's render. The rule guards
+      // React Compiler memoisation, which this project does not use.
+      "files": ["src/hud/scene/**"],
+      "rules": {
+        "react/immutability": "off"
+      }
+    }
+  ],
   "ignorePatterns": [
     "dist",
     "node_modules"

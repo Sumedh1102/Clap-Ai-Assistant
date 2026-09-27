@@ -3,7 +3,7 @@ import { Bloom, EffectComposer, Noise, Vignette } from '@react-three/postprocess
 import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Color } from 'three'
 import type { ClapController } from '../../app/controller'
-import { useHud } from '../../state/store'
+import { hud, useHud } from '../../state/store'
 import { cssColor, damp, visualFor } from '../visual'
 import { Core } from './Core'
 import { Dust } from './Dust'
@@ -28,15 +28,13 @@ function usePrefersReducedMotion(): boolean {
  * components that read `live` each frame.
  */
 function Driver({ live, controller, reducedMotion }: { live: Live; controller: ClapController; reducedMotion: boolean }) {
-  const state = useRef(useHud.getState().assistant)
-  useEffect(() => useHud.subscribe((s) => (state.current = s.assistant)), [])
   const target = useMemo(() => new Color(), [])
   const peaks = useRef({ out: 0, mic: 0, lastRipple: -1, phase: 0 })
 
   useFrame((_, rawDelta) => {
     const dt = Math.min(rawDelta, 0.1)
     live.time += dt
-    const now = state.current
+    const now = hud.get().assistant
     if (now !== live.state) {
       // The clap: the halves snap shut and the room rings.
       if (now === 'WAKE_DETECTED') {
@@ -128,7 +126,7 @@ function webglAvailable(): boolean {
 }
 
 export function Scene({ controller }: { controller: ClapController }) {
-  const live = useMemo(createLive, [])
+  const live = useMemo(() => createLive(), [])
   const reducedMotion = usePrefersReducedMotion()
   const [webgl] = useState(webglAvailable)
   if (!webgl) return <FallbackCore />
