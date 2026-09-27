@@ -15,6 +15,8 @@
  *    streaming until its `result` arrives (measured). A message delivered in
  *    that window can also be folded into the old turn. So the next message is
  *    held until the interrupted turn settles, with a cap in case it never does.
+ *    A turn given up on at the cap is remembered: its late frames and result
+ *    are dropped, never attributed to the turn that replaced it.
  *
  * 3. Tool permissions. The PreToolUse hook fires for every tool call, with
  *    trusted provenance, before it runs — so that is where the permission gate
@@ -149,6 +151,10 @@ export class AgentSession {
   private lastAssistantError: SDKAssistantMessageError | null = null
   /** Tool-use ids the gate approved; `canUseTool` allows only these. */
   private readonly approved = new Set<string>()
+  /** SDK uuids of interrupted turns given up on at the settle cap. */
+  private readonly abandoned = new Set<string>()
+  /** The stream is still on an abandoned turn: drop frames until a live turn stamps one. */
+  private stale = false
 
   constructor(options: AgentSessionOptions) {
     this.options = options
@@ -275,7 +281,10 @@ export class AgentSession {
     if (this.active.length) {
       // The interrupted turn never reported back. Stop waiting for it; its
       // late frames, if any, are still attributed by uuid.
-      for (const stuck of this.active) this.finishTurn(stuck, { interrupted: true })
+      for (const stuck of this.active) {
+        this.abandoned.add(stuck.sdkUuid)
+        this.finishTurn(stuck, { interrupted: true })
+      }
       this.active = []
       this.current = null
     }
@@ -304,13 +313,25 @@ export class AgentSession {
     }
   }
 
-  /** Which turn a frame belongs to, re-syncing on the SDK's uuid stamps. */
+  /**
+   * Which turn a frame belongs to, re-syncing on the SDK's uuid stamps. The SDK
+   * streams turns in order and stamps each turn's first frame, so after a frame
+   * stamped by an abandoned turn every unstamped frame is that turn's too.
+   */
   private turnFor(frame: { user_message_uuid?: string }): Turn | null {
     const stamp = frame.user_message_uuid
     if (stamp) {
+      if (this.abandoned.has(stamp)) {
+        this.stale = true
+        return null
+      }
       const stamped = this.active.find((t) => t.sdkUuid === stamp)
-      if (stamped) this.current = stamped
+      if (stamped) {
+        this.current = stamped
+        this.stale = false
+      }
     }
+    if (this.stale) return null
     return this.current ?? this.active[0] ?? null
   }
 
@@ -426,6 +447,8 @@ export class AgentSession {
     this.queue = []
     this.current = null
     this.approved.clear()
+    this.abandoned.clear()
+    this.stale = false
     for (const turn of affected) {
       turn.abort.abort()
       this.finishTurn(turn, { interrupted: turn.interrupted, failure: turn.interrupted ? undefined : failure })
@@ -472,6 +495,12 @@ export class AgentSession {
 
       case 'result': {
         const stamp = message.user_message_uuid
+        if ((stamp && this.abandoned.delete(stamp)) || (!stamp && this.stale)) {
+          // An abandoned turn finally ended; it was reported when it was abandoned.
+          this.stale = false
+          this.logger.debug('agent.late_result_dropped', { subtype: message.subtype })
+          return
+        }
         const turn = (stamp && this.active.find((t) => t.sdkUuid === stamp)) || this.current || this.active[0]
         if (!turn) {
           this.logger.debug('agent.result_without_turn', { subtype: message.subtype })
