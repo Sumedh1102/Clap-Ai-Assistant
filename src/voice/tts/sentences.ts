@@ -31,6 +31,47 @@ function isFalseBoundary(before: string, punct: string): boolean {
   return ABBREVIATIONS.has(bare)
 }
 
+/**
+ * Drops fenced code blocks from streamed text. It must run before sentence
+ * splitting: the splitter cuts at line breaks, so a block would otherwise reach
+ * the voice one line of code at a time, never as a whole block to remove. A
+ * fence split across deltas ("…`" + "``bash") is held back until it is whole.
+ */
+export class FenceFilter {
+  private inside = false
+  private held = ''
+
+  push(delta: string): string {
+    let text = this.held + delta
+    this.held = ''
+    const partial = /`{1,2}$/.exec(text)
+    if (partial) {
+      this.held = partial[0]
+      text = text.slice(0, -partial[0].length)
+    }
+    let out = ''
+    let pos = 0
+    for (let at = text.indexOf('```'); at !== -1; at = text.indexOf('```', pos)) {
+      if (!this.inside) out += text.slice(pos, at)
+      this.inside = !this.inside
+      pos = at + 3
+    }
+    return this.inside ? out : out + text.slice(pos)
+  }
+
+  /** The end of the stream: an unclosed block is still code. */
+  flush(): string {
+    const rest = this.inside ? '' : this.held
+    this.reset()
+    return rest
+  }
+
+  reset(): void {
+    this.inside = false
+    this.held = ''
+  }
+}
+
 export class SentenceSplitter {
   private buffer = ''
 

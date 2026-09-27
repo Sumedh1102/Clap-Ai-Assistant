@@ -247,8 +247,11 @@ export function transition(ctx: MachineContext, event: MachineEvent): Transition
     }
 
     case 'WAKE': {
-      if (ctx.state !== 'LISTENING_FOR_WAKE' || !ctx.connected) return same(ctx)
+      // Accepted exactly when the recogniser is listening for it: resting, or
+      // showing an error with no turn in flight ("hey clap, try that again").
+      if (recognizerMode(ctx) !== 'wake') return same(ctx)
       const heard: Effect[] = [{ type: 'cue', name: 'wake' }, { type: 'wakeDetected' }]
+      if (ctx.state === 'ERROR') heard.unshift({ type: 'stopSpeech' }, { type: 'clearTimer', name: 'error' })
       // "Hey CLAP, what's the time" is one breath, not two turns.
       if (event.trailing.trim()) {
         const started = startTurn(ctx, event.turnId, event.trailing.trim(), 'voice')

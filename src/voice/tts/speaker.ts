@@ -12,7 +12,7 @@
 
 import { toSpeakable } from '../../lib/text'
 import type { EchoWindow } from '../echo'
-import { SentenceSplitter } from './sentences'
+import { FenceFilter, SentenceSplitter } from './sentences'
 import type { VoiceProvider } from './types'
 
 export type SpeakerHooks = {
@@ -27,6 +27,7 @@ export class Speaker {
   private readonly provider: VoiceProvider
   private readonly hooks: SpeakerHooks
   private readonly echo: EchoWindow | null
+  private readonly fences = new FenceFilter()
   private readonly splitter = new SentenceSplitter()
   private readonly abort = new AbortController()
   private queue: string[] = []
@@ -44,19 +45,21 @@ export class Speaker {
   /** Feed streamed text; complete sentences are spoken as they appear. */
   push(delta: string): void {
     if (this.cancelled) return
-    for (const sentence of this.splitter.push(delta)) this.enqueue(sentence)
+    for (const sentence of this.splitter.push(this.fences.push(delta))) this.enqueue(sentence)
   }
 
   /** Speak a whole piece of text (a prompt or notice) after anything queued. */
   say(text: string): void {
     if (this.cancelled) return
+    const fences = new FenceFilter()
     const splitter = new SentenceSplitter()
-    for (const sentence of [...splitter.push(`${text} `), ...splitter.flush()]) this.enqueue(sentence)
+    const prose = `${fences.push(text)}${fences.flush()} `
+    for (const sentence of [...splitter.push(prose), ...splitter.flush()]) this.enqueue(sentence)
   }
 
   /** No more text is coming. Resolves once everything queued has been spoken (or cancelled). */
   end(): Promise<void> {
-    for (const sentence of this.splitter.flush()) this.enqueue(sentence)
+    for (const sentence of [...this.splitter.push(this.fences.flush()), ...this.splitter.flush()]) this.enqueue(sentence)
     if (this.cancelled || (!this.pumping && !this.queue.length)) return Promise.resolve()
     return new Promise((resolve) => this.waiters.push(resolve))
   }
@@ -66,6 +69,7 @@ export class Speaker {
     if (this.cancelled) return
     this.cancelled = true
     this.queue = []
+    this.fences.reset()
     this.splitter.reset()
     this.abort.abort()
     this.provider.stop(80)

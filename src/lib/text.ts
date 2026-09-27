@@ -21,6 +21,12 @@ export function sanitizeForDisplay(text: string, maxLength = 20_000): string {
 
 const EMOJI = /\p{Extended_Pictographic}|[\u{1F1E6}-\u{1F1FF}]|\u{FE0F}|\u{200D}/gu
 
+function trailingPunctuation(url: string): string {
+  let end = url.length
+  while (end > 0 && '.,;:!?'.includes(url[end - 1]!)) end--
+  return url.slice(end)
+}
+
 export function toSpeakable(text: string): string {
   return (
     sanitizeForDisplay(text)
@@ -28,8 +34,10 @@ export function toSpeakable(text: string): string {
       .replace(/```[\s\S]*?(```|$)/g, ' ')
       // [label](url) → label
       .replace(/\[([^\]]{1,200})\]\((?:[^)\s]{1,2000})\)/g, '$1')
-      // Bare URLs, keeping the sentence's own final punctuation.
-      .replace(/\bhttps?:\/\/[^\s)]+?(?=[.,;:!?)]*(?:\s|$))/gi, '')
+      // Bare URLs, keeping the sentence's own final punctuation. Matched
+      // greedily and trimmed by hand: a lazy match with a punctuation
+      // lookahead is quadratic on a long run of dots.
+      .replace(/\bhttps?:\/\/[^\s)]+/gi, trailingPunctuation)
       .replace(/^\s{0,3}#{1,6}\s+/gm, '')
       .replace(/^\s*(?:[-*+•]|\d{1,3}[.)])\s+/gm, '')
       .replace(/^\s*>\s?/gm, '')
