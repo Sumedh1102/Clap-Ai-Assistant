@@ -70,7 +70,7 @@ with its default, and none is required. The ones people change most:
 | `CLAP_POLICY_MEDIUM` | `allow` | `allow`, `confirm` or `deny` medium-risk actions |
 | `CLAP_POLICY_HIGH` | `confirm` | `confirm` or `deny`; never `allow` |
 | `ELEVENLABS_API_KEY` | — | Cloud voice and transcription |
-| `CLAP_VOICE_ID` | — | The custom CLAP voice ([docs/voice.md](docs/voice.md)) |
+| `CLAP_VOICE_ID` | — | CLAP's voice, Dominic — set by `npm run voice:find` ([docs/voice.md](docs/voice.md)) |
 
 Bad values stop the bridge with a message naming the variable;
 `npm run doctor` lists them all.
@@ -97,10 +97,17 @@ Bad values stop the bridge with a message naming the variable;
 
 ## Voice
 
-Out of the box CLAP uses the browser's own voice and speech recognition. With
-an ElevenLabs key it speaks through the bridge. The custom CLAP voice has not
-been created yet — see [docs/voice.md](docs/voice.md) for recording,
-inspecting (`npm run voice:inspect -- sample.wav`) and setting it up.
+CLAP's voice is **Dominic** from the ElevenLabs Voice Library: British, low,
+intense. With an ElevenLabs key in `.env.local`:
+
+```bash
+npm run voice:find -- dominic --use 1   # adds Dominic and sets CLAP_VOICE_ID
+```
+
+Without a key CLAP uses the browser's own voice and speech recognition,
+preferring a British male voice. [docs/voice.md](docs/voice.md) has the
+details, voice tuning, and how to make a custom voice instead
+(`npm run voice:inspect -- sample.wav` judges a recording).
 
 ## Development
 

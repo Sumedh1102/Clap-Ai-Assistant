@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { analyse, AudioFormatError, clipLevel, judge, parseWav, sniffFormat } from './audio'
+import { analyse, AudioFormatError, clipLevel, judge, libraryPreviewName, parseWav, sniffFormat } from './audio'
 
 /** One RIFF chunk, padded to an even length. */
 function chunk(id: string, body: Buffer): Buffer {
@@ -161,5 +161,15 @@ describe('analyse and judge', () => {
     expect(stats.peakDb).toBe(-Infinity)
     expect(stats.speechS).toBe(0)
     expect(stats.leadingSilenceS).toBe(1)
+  })
+})
+
+describe('libraryPreviewName', () => {
+  it('recognises ElevenLabs Voice Library preview filenames', () => {
+    expect(libraryPreviewName('voice_preview_dominic - british brooding, intense.mp3')).toBe('dominic')
+    expect(libraryPreviewName('c4fe57f1-voice_preview_dominic_-_british_brooding__intense.mp3')).toBe('dominic')
+    expect(libraryPreviewName('voice_preview_jean luc - french, warm.mp3')).toBe('jean luc')
+    expect(libraryPreviewName('voice_preview_aria.mp3')).toBe('aria')
+    expect(libraryPreviewName('my-voice.wav')).toBeNull()
   })
 })

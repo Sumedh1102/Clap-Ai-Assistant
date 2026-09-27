@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { RESTART_CODE, RESTART_LIMIT, shouldRestart } from '../start'
-import { checkConfig, checkNode, failed, findClaudeBinary, formatChecks, parseAuthStatus, portFree } from './checks'
+import { parseConfig } from '../../bridge/config'
+import { checkConfig, checkNode, checkVoice, failed, findClaudeBinary, formatChecks, parseAuthStatus, portFree } from './checks'
 
 describe('checkNode', () => {
   it('requires Node 20.11 or newer', () => {
@@ -71,5 +72,44 @@ describe('shouldRestart', () => {
     expect(shouldRestart(RESTART_CODE, recent.slice(1), now)).toBe(true)
     expect(shouldRestart(RESTART_CODE, recent, now)).toBe(false)
     expect(shouldRestart(RESTART_CODE, recent.map((t) => t - RESTART_LIMIT.windowMs), now)).toBe(true)
+  })
+})
+
+const keyed = (env: NodeJS.ProcessEnv = {}) => parseConfig({ ELEVENLABS_API_KEY: 'sk_test_0123456789', ...env })
+
+describe('checkVoice', () => {
+  const answer = (status: number, body: unknown) =>
+    (async (url: string | URL | Request) => {
+      calls.push(String(url))
+      return status === 200 ? Response.json(body) : new Response(String(body), { status })
+    }) as typeof fetch
+  let calls: string[] = []
+
+  it('warns, without a network call, when there is no key', async () => {
+    calls = []
+    expect(await checkVoice(parseConfig({}), answer(200, {}))).toMatchObject({ status: 'warn', detail: 'browser voice and recognition only' })
+    expect(calls).toEqual([])
+  })
+
+  it('confirms the configured voice by name', async () => {
+    calls = []
+    const check = await checkVoice(keyed({ CLAP_VOICE_ID: 'Dominic0001' }), answer(200, { name: 'Dominic' }))
+    expect(check).toEqual({ name: 'Voice', status: 'ok', detail: 'cloud voice "Dominic", cloud transcription' })
+    expect(calls).toEqual(['https://api.elevenlabs.io/v1/voices/Dominic0001'])
+  })
+
+  it('points at the stock voice until CLAP_VOICE_ID is set', async () => {
+    const check = await checkVoice(keyed({ CLAP_STT_PROVIDER: 'none' }), answer(200, { name: 'George' }))
+    expect(check.detail).toBe('cloud voice "George" (stock; set CLAP_VOICE_ID), browser transcription')
+  })
+
+  it('explains a missing voice, a bad key and a blocked network', async () => {
+    const missing = await checkVoice(keyed({ CLAP_VOICE_ID: 'Gone00000001' }), answer(404, 'voice_not_found'))
+    expect(missing).toMatchObject({ status: 'warn', fix: 'Run npm run voice:find -- dominic --use 1.' })
+    expect(missing.detail).toMatch(/Gone00000001 is not in this ElevenLabs account/)
+    expect((await checkVoice(keyed(), answer(401, 'bad key'))).detail).toMatch(/rejected the API key/)
+    const blocked = await checkVoice(keyed(), answer(403, 'Host not in allowlist: api.elevenlabs.io'))
+    expect(blocked.detail).toMatch(/403: Host not in allowlist/)
+    expect(blocked.status).toBe('warn')
   })
 })

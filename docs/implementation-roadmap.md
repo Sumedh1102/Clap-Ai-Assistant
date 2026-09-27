@@ -65,14 +65,18 @@ Goal: CLAP speaks in its own voice.
 - ✅ `npm run voice:inspect -- <file>` reports format, duration, sample rate,
   channels, level, clipping and silence, and judges suitability for cloning
 - ✅ ElevenLabs adapter behind `VoiceProvider` (`CLAP_VOICE_ID`)
-- ⬜ Inspect the supplied voice sample (none has been supplied yet — the
-  workflow is in `docs/voice.md`)
-- ⬜ Preprocess if needed (trim silence, normalise to −1 dBFS peak, mono
-  44.1 kHz WAV, remove music/noise)
-- ⬜ Create the voice (ElevenLabs Instant Voice Cloning needs roughly 1–2
-  minutes of clean speech; Professional cloning needs far more), set
-  `CLAP_VOICE_ID`, tune stability/similarity/speed
-- ⬜ Optional `npm run voice:clone` helper that uploads through the bridge's key
+- ✅ Inspect the supplied voice sample: the ElevenLabs Voice Library preview
+  of "Dominic" (British, brooding, intense) — 8.6 s, studio-clean, far too
+  short to clone. Dominic is used as a library voice instead (`docs/voice.md`)
+- ✅ `npm run voice:find -- <name> [--use n]` finds a voice in the account or
+  the Voice Library, adds it, and sets `CLAP_VOICE_ID` in `.env.local`
+- ✅ Character follows the voice: British English in the personality; the
+  browser fallback prefers a British male voice
+- ⬜ Set `CLAP_VOICE_ID` to Dominic with the user's ElevenLabs key
+  (`npm run voice:find -- dominic --use 1`), listen, tune
+  stability/similarity/speed
+- ⬜ Optional: a custom cloned voice (1–2 minutes of clean speech; the
+  record/inspect/preprocess steps are in `docs/voice.md`)
 - ⬜ Evaluate a local TTS adapter for offline use
 
 ## Phase 4 — Tools, MCP, browser 🟡
@@ -126,7 +130,7 @@ Goal: CLAP speaks in its own voice.
 - The ElevenLabs adapter was written against the endpoints the reference
   project uses; this development environment could not reach elevenlabs.io, so
   it is covered by unit tests with a mocked upstream only.
-- `voice:inspect` reads WAV itself and other formats through ffmpeg; ffmpeg was
-  not installed in the development environment, so that path is unverified.
+- The development environment's network policy blocks api.elevenlabs.io, so
+  `voice:find` is also tested against a mocked upstream only.
 - Conversation context lives in the agent session; it survives page reloads and
   short disconnects, but not a bridge restart (by design until Phase 5 memory).

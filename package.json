@@ -19,6 +19,7 @@
     "setup": "tsx scripts/setup.ts",
     "doctor": "tsx scripts/doctor.ts",
     "voice:inspect": "tsx scripts/inspect-voice.ts",
+    "voice:find": "tsx scripts/voice-find.ts",
     "preview": "vite preview"
   },
   "dependencies": {

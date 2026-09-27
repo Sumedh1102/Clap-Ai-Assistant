@@ -13,6 +13,7 @@ npm start             # preflight, bridge, HUD, browser (scripts/start.ts); CLAP
 npm run doctor        # preflight only: Node, bundled Claude Code, auth, config, ports, voice
 npm run setup         # creates .env.local from .env.example if absent, then the doctor's checks
 npm run voice:inspect -- <file> [--json]   # judge a voice sample for cloning
+npm run voice:find -- <name> [--use n]     # find an ElevenLabs voice; --use adds it and sets CLAP_VOICE_ID
 npm run bridge        # bridge on 127.0.0.1:7719 (tsx bridge/server.ts)
 npm run dev           # HUD on http://localhost:5173 (Vite, strictPort)
 npm run typecheck     # tsc -b over all three projects (no emit)
@@ -23,7 +24,7 @@ npx vitest run src/voice/machine.test.ts     # one file
 npx vitest run -t "barge-in"                 # tests matching a name
 ```
 
-Tests are colocated `*.test.ts` in Vitest's default node environment; there is no `vitest.config.ts` (Vitest uses `vite.config.ts`). `AgentSession` is tested against the scripted SDK fake in `bridge/testing/fake-sdk.ts` (it consumes the prompt stream, sends frames, and calls the session's own hooks and `canUseTool`); `bridge/app.test.ts` runs the real HTTP/WebSocket server on an ephemeral port. `bridge/config.test.ts` fails if `.env.example` stops documenting a variable `config.ts` reads. The ElevenLabs adapter and the inspector's ffmpeg path are the untested-live parts (no egress / no ffmpeg in development).
+Tests are colocated `*.test.ts` in Vitest's default node environment; there is no `vitest.config.ts` (Vitest uses `vite.config.ts`). `AgentSession` is tested against the scripted SDK fake in `bridge/testing/fake-sdk.ts` (it consumes the prompt stream, sends frames, and calls the session's own hooks and `canUseTool`); `bridge/app.test.ts` runs the real HTTP/WebSocket server on an ephemeral port. `bridge/config.test.ts` fails if `.env.example` stops documenting a variable `config.ts` reads. The ElevenLabs adapter and `scripts/lib/voices.ts` are tested against mocked upstreams only (the environment's network policy blocks api.elevenlabs.io).
 
 Scripts share `scripts/lib/checks.ts` (the doctor's checks, judged by the bridge's own `parseConfig`). `start.ts` restarts a bridge that exits with code 70 (`server.ts` exits so after an uncaught exception), at most 3 times a minute; any other exit of either child stops both.
 
@@ -62,4 +63,5 @@ TypeScript is 7.x (native `tsc`). Three projects extend `tsconfig.base.json`: `t
 - `vite.config.ts` fails the build if any `VITE_*` variable name looks secret, generates the CSP into `index.html` (`%CLAP_CSP%`), injects the bridge URL as `__CLAP_BRIDGE_URL__`, and pins the UI port with `strictPort` because the bridge's allowed origins are derived from `CLAP_UI_PORT`.
 - The bridge binds loopback unless `CLAP_ALLOW_NON_LOOPBACK=1`. Model-authored text is rendered as plain text and passed through `src/lib/text.ts` before display or speech. Regexes over model or web text must stay linear (`toSpeakable` and `tools/html.ts` have timing tests on hostile input).
 - `security/ssrf.ts` allows IPv6 only in global unicast 2000::/3 (after judging IPv4-embedding forms); `security/paths.ts` refuses a not-yet-existing path that is a dangling symlink; CORS reflects only allowlisted origins (`allowedOrigin`), never `null`.
-- ElevenLabs endpoints in `bridge/voice/elevenlabs.ts` could not be verified from the development environment (egress blocked); model ids are configurable (`CLAP_TTS_MODEL`, `CLAP_STT_MODEL`).
+- ElevenLabs endpoints in `bridge/voice/elevenlabs.ts` and `scripts/lib/voices.ts` could not be verified from the development environment (egress blocked); model ids are configurable (`CLAP_TTS_MODEL`, `CLAP_STT_MODEL`).
+- CLAP's voice is Dominic, an ElevenLabs Voice Library voice (British, low, intense), used by id rather than cloned from its 8.6 s preview (`docs/voice.md`). The personality writes British English to match, and `scoreVoice` in `src/voice/tts/browser.ts` ranks British male browser voices up so the fallback sounds like the same person.

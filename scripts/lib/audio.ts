@@ -212,3 +212,12 @@ export function judge(audio: Pick<DecodedAudio, 'sampleRate' | 'channels' | 'bit
   if (audio.channels > 1) advice.push('Stereo is fine; the clone uses one channel, so mono 44.1 kHz WAV is the ideal upload.')
   return { rating, problems, advice }
 }
+
+/**
+ * ElevenLabs names Voice Library previews "voice_preview_<name> - <traits>.mp3"
+ * (spaces often become underscores). Returns the voice's name, or null.
+ */
+export function libraryPreviewName(filename: string): string | null {
+  const match = /voice_preview_([a-z0-9]+(?:[ _][a-z0-9]+)*?)(?:[ _]+-|\.[a-z0-9]+$)/i.exec(filename)
+  return match ? match[1]!.replace(/_/g, ' ').trim() : null
+}

@@ -11,14 +11,17 @@
 
 import { DEFAULT_ELEVENLABS_VOICE, type BridgeConfig } from '../config'
 
-const API = 'https://api.elevenlabs.io/v1'
+export const ELEVENLABS_API = 'https://api.elevenlabs.io/v1'
 
 export class VoiceUpstreamError extends Error {
   readonly status: number
+  /** The upstream's own words (or a proxy's), bounded. */
+  readonly detail: string
   constructor(status: number, detail: string) {
     super(`ElevenLabs responded ${status}${detail ? `: ${detail}` : ''}`)
     this.name = 'VoiceUpstreamError'
     this.status = status
+    this.detail = detail
   }
 }
 
@@ -63,7 +66,7 @@ export class ElevenLabs {
     if (this.voice.similarity !== null) settings.similarity_boost = this.voice.similarity
     if (this.voice.speed !== null) settings.speed = this.voice.speed
 
-    const url = `${API}/text-to-speech/${encodeURIComponent(this.voiceId)}/stream?output_format=${encodeURIComponent(this.voice.ttsOutputFormat)}`
+    const url = `${ELEVENLABS_API}/text-to-speech/${encodeURIComponent(this.voiceId)}/stream?output_format=${encodeURIComponent(this.voice.ttsOutputFormat)}`
     const res = await this.fetchFn(url, {
       method: 'POST',
       headers: { 'xi-api-key': this.apiKey, 'content-type': 'application/json', accept: 'audio/mpeg' },
@@ -82,7 +85,7 @@ export class ElevenLabs {
     const form = new FormData()
     form.append('model_id', this.voice.sttModel)
     form.append('file', new Blob([new Uint8Array(audio)], { type: mime }), `speech.${audioExtension(mime)}`)
-    const res = await this.fetchFn(`${API}/speech-to-text`, {
+    const res = await this.fetchFn(`${ELEVENLABS_API}/speech-to-text`, {
       method: 'POST',
       headers: { 'xi-api-key': this.apiKey },
       body: form,

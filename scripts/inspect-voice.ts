@@ -10,7 +10,7 @@
 import { execFile } from 'node:child_process'
 import { readFileSync, statSync } from 'node:fs'
 import { basename } from 'node:path'
-import { analyse, AudioFormatError, judge, parseWav, sniffFormat, type AudioStats, type DecodedAudio } from './lib/audio'
+import { analyse, AudioFormatError, judge, libraryPreviewName, parseWav, sniffFormat, type AudioStats, type DecodedAudio } from './lib/audio'
 
 /** Decode anything ffmpeg understands to 32-bit float mono WAV, keeping the rate. */
 function decodeWithFfmpeg(path: string): Promise<Buffer | null> {
@@ -27,13 +27,23 @@ function decodeWithFfmpeg(path: string): Promise<Buffer | null> {
 const seconds = (s: number) => (s >= 60 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${s.toFixed(1)} s`)
 const db = (x: number) => (Number.isFinite(x) ? `${x.toFixed(1)} dBFS` : 'silent')
 
-function report(file: string, format: string, audio: DecodedAudio, channels: number, stats: AudioStats): string {
+type Source = { format: string; channels: number; bitRate: number | null }
+
+function describeFormat(source: Source, audio: DecodedAudio): string {
+  if (source.format === 'wav') return `WAV, ${audio.bitsPerSample}-bit ${audio.encoding === 'float' ? 'float' : 'PCM'}`
+  const rate = source.bitRate ? `, ${Math.round(source.bitRate / 1000)} kbps` : ''
+  return `${source.format.toUpperCase()}${rate} (decoded with ffmpeg)`
+}
+
+function report(file: string, source: Source, audio: DecodedAudio, stats: AudioStats): string {
+  const channels = source.channels
   const verdict = judge({ ...audio, channels }, stats)
+  const preview = libraryPreviewName(basename(file))
   const lines = [
     '',
     `Voice sample: ${basename(file)}`,
     '',
-    `  Format        ${format.toUpperCase()}, ${audio.encoding === 'float' ? `${audio.bitsPerSample}-bit float` : `${audio.bitsPerSample}-bit PCM`}`,
+    `  Format        ${describeFormat(source, audio)}`,
     `  Duration      ${seconds(stats.durationS)} (speech ${seconds(stats.speechS)})`,
     `  Sample rate   ${audio.sampleRate} Hz`,
     `  Channels      ${channels}`,
@@ -46,6 +56,14 @@ function report(file: string, format: string, audio: DecodedAudio, channels: num
     `  Verdict: ${verdict.rating.toUpperCase()} for voice cloning`,
     ...verdict.problems.map((p) => `    - ${p}`),
     ...(verdict.advice.length ? ['', '  Suggestions:', ...verdict.advice.map((a) => `    - ${a}`)] : []),
+    ...(preview
+      ? [
+          '',
+          `  This is an ElevenLabs Voice Library preview of "${preview}". Use that voice itself`,
+          '  rather than cloning its preview — it is the full-quality original:',
+          `    npm run voice:find -- ${preview.split(' ')[0]}`,
+        ]
+      : []),
     '',
   ]
   return lines.join('\n')
@@ -73,7 +91,6 @@ async function main(): Promise<void> {
 
   const format = sniffFormat(buffer.subarray(0, 16))
   let wav: Buffer | null = format === 'wav' ? buffer : null
-  let channels = 0
   if (!wav) {
     wav = await decodeWithFfmpeg(file)
     if (!wav) {
@@ -87,10 +104,11 @@ async function main(): Promise<void> {
   }
 
   let audio: DecodedAudio
+  let source: Source
   try {
     audio = parseWav(wav)
-    // ffmpeg's output is already mixed to mono; ask the original for its channel count.
-    channels = format === 'wav' ? audio.channels : await probeChannels(file)
+    // ffmpeg's output is mixed to mono; ask the original for its channels and bit rate.
+    source = format === 'wav' ? { format, channels: audio.channels, bitRate: null } : { format, ...(await probe(file)) }
   } catch (error) {
     process.stderr.write(`${basename(file)}: ${error instanceof AudioFormatError ? error.message : String(error)}\n`)
     process.exitCode = 1
@@ -99,21 +117,26 @@ async function main(): Promise<void> {
 
   const stats = analyse(audio)
   if (json) {
-    const verdict = judge({ ...audio, channels }, stats)
-    const { samples: _samples, ...info } = audio
-    process.stdout.write(`${JSON.stringify({ file, format, ...info, channels, ...stats, verdict }, null, 2)}\n`)
+    const verdict = judge({ ...audio, channels: source.channels }, stats)
+    const { samples: _samples, ...decoded } = audio
+    const libraryPreview = libraryPreviewName(basename(file))
+    process.stdout.write(`${JSON.stringify({ file, ...decoded, ...source, ...stats, verdict, libraryPreview }, null, 2)}\n`)
   } else {
-    process.stdout.write(report(file, format, audio, channels, stats))
+    process.stdout.write(report(file, source, audio, stats))
   }
 }
 
-function probeChannels(path: string): Promise<number> {
+/** The original file's channel count and bit rate, from ffprobe. */
+function probe(path: string): Promise<{ channels: number; bitRate: number | null }> {
   return new Promise((resolve) => {
     execFile(
       'ffprobe',
-      ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=channels', '-of', 'csv=p=0', path],
+      ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=channels,bit_rate', '-of', 'json', path],
       { windowsHide: true },
-      (error, stdout) => resolve(error ? 1 : Number(String(stdout).trim()) || 1),
+      (error, stdout) => {
+        const stream = error ? undefined : (JSON.parse(String(stdout)) as { streams?: Array<{ channels?: number; bit_rate?: string }> }).streams?.[0]
+        resolve({ channels: stream?.channels || 1, bitRate: Number(stream?.bit_rate) || null })
+      },
     )
   })
 }

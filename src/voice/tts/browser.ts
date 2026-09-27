@@ -17,16 +17,26 @@ import { VoiceError, type SpeakOptions, type VoiceCapabilities, type VoiceProvid
 
 const PREFERENCE_KEY = 'clap.voice'
 
-/** Rank installed voices: natural-sounding English, not novelty voices. */
+/**
+ * CLAP's cloud voice is a low, British male voice ("Dominic", docs/voice.md).
+ * When it is unavailable the browser voice stands in, so among voices of the
+ * user's language, prefer ones that sound like the same person.
+ */
+const BRITISH_MALE = /\b(daniel|arthur|ryan|thomas|george|oliver|alfie|elliot|uk english male)\b/
+
+/** Rank installed voices: natural-sounding, in CLAP's character, not novelty voices. */
 export function scoreVoice(voice: Pick<SpeechSynthesisVoice, 'name' | 'lang' | 'localService'>, preferredLang: string): number {
   const name = voice.name.toLowerCase()
+  const lang = voice.lang.toLowerCase().replace('_', '-')
   let score = 0
-  if (voice.lang.toLowerCase() === preferredLang.toLowerCase()) score += 40
-  else if (voice.lang.slice(0, 2).toLowerCase() === preferredLang.slice(0, 2).toLowerCase()) score += 25
+  if (lang === preferredLang.toLowerCase()) score += 40
+  else if (lang.slice(0, 2) === preferredLang.slice(0, 2).toLowerCase()) score += 25
   else return -1000
   if (/natural|neural|premium|enhanced/.test(name)) score += 35
   if (/online/.test(name)) score += 10
   if (/google (us|uk) english|samantha|daniel|aria|jenny|guy|ava|serena|oliver|moira|tessa/.test(name)) score += 20
+  if (lang === 'en-gb') score += 25
+  if (BRITISH_MALE.test(name)) score += 20
   if (/grandma|grandpa|bubbles|jester|bells|boing|whisper|zarvox|superstar|trinoids|wobble|bahh|organ|cellos|bad news|good news|albert|fred|junior|ralph|kathy|hysterical/.test(name)) {
     score -= 500
   }

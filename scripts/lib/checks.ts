@@ -11,8 +11,10 @@ import { createRequire } from 'node:module'
 import { createServer } from 'node:net'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ConfigError, parseConfig, voiceCapabilities, type BridgeConfig } from '../../bridge/config'
+import { ConfigError, DEFAULT_ELEVENLABS_VOICE, parseConfig, voiceCapabilities, type BridgeConfig } from '../../bridge/config'
 import { loadEnvFiles } from '../../bridge/env'
+import { VoiceUpstreamError } from '../../bridge/voice/elevenlabs'
+import { voiceName } from './voices'
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -156,15 +158,38 @@ export async function bridgeHealth(config: Pick<BridgeConfig, 'host' | 'port'>, 
   }
 }
 
-export function checkVoice(config: BridgeConfig): Check {
+/**
+ * With a key configured, ask ElevenLabs about the voice CLAP will use: this
+ * proves the key works and the voice is in the account, not just that
+ * variables are set.
+ */
+export async function checkVoice(config: BridgeConfig, fetchFn: typeof fetch = fetch): Promise<Check> {
   const caps = voiceCapabilities(config)
   const name = 'Voice'
-  if (caps.tts.cloud || caps.stt.cloud) {
-    const parts = [
-      caps.tts.cloud ? (caps.tts.customVoice ? 'cloud voice (custom)' : 'cloud voice (stock ElevenLabs voice)') : 'browser voice',
-      caps.stt.cloud ? 'cloud transcription' : 'browser transcription',
-    ]
-    return { name, status: 'ok', detail: parts.join(', ') }
+  const key = config.voice.elevenLabsApiKey
+  if (key && (caps.tts.cloud || caps.stt.cloud)) {
+    const voiceId = config.voice.voiceId ?? DEFAULT_ELEVENLABS_VOICE
+    const transcription = caps.stt.cloud ? 'cloud transcription' : 'browser transcription'
+    try {
+      const voice = await voiceName(voiceId, key, fetchFn)
+      const speech = caps.tts.cloud ? `cloud voice "${voice}"${config.voice.voiceId ? '' : ' (stock; set CLAP_VOICE_ID)'}` : 'browser voice'
+      return { name, status: 'ok', detail: `${speech}, ${transcription}` }
+    } catch (error) {
+      const reason =
+        error instanceof VoiceUpstreamError
+          ? error.status === 401
+            ? 'ElevenLabs rejected the API key'
+            : error.status === 404
+              ? `voice ${voiceId} is not in this ElevenLabs account`
+              : `ElevenLabs answered ${error.status}: ${error.detail || 'no reason given'}`
+          : `ElevenLabs could not be reached (${error instanceof Error ? error.message : String(error)})`
+      return {
+        name,
+        status: 'warn',
+        detail: `${reason.replace(/[.\s]+$/, '')}; CLAP will fall back to the browser voice`,
+        fix: error instanceof VoiceUpstreamError && error.status === 404 ? 'Run npm run voice:find -- dominic --use 1.' : 'Check ELEVENLABS_API_KEY and your network.',
+      }
+    }
   }
   return {
     name,
@@ -225,6 +250,6 @@ export async function collectChecks(mode: 'doctor' | 'start'): Promise<{
   } else {
     checks.push(ui)
   }
-  checks.push(checkVoice(config))
+  checks.push(await checkVoice(config))
   return { checks, config, health }
 }
