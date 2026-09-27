@@ -133,3 +133,37 @@ test('shows the CSS core when WebGL is unavailable @no-webgl', async ({ hud }) =
   await ask(hud, 'still there')
   await expect(caption(hud)).toContainText('Heard: still there.')
 })
+
+test('turns the microphone off when speech recognition fails and nothing else can transcribe @voice', async ({ page }) => {
+  // A browser recogniser that exists but cannot capture audio. (Stubbed: the
+  // real on-device check crashes Playwright's headless_shell renderer.)
+  await page.addInitScript(() => {
+    class BrokenRecognition {
+      onerror: ((event: { error: string }) => void) | null = null
+      onend: (() => void) | null = null
+      start() {
+        setTimeout(() => {
+          this.onerror?.({ error: 'audio-capture' })
+          this.onend?.()
+        }, 50)
+      }
+      stop() {}
+      abort() {}
+      static available = async () => 'unavailable'
+    }
+    Object.assign(window, { SpeechRecognition: BrokenRecognition, webkitSpeechRecognition: BrokenRecognition })
+  })
+  await page.goto('/')
+  await expect(page.locator('.connection')).toContainText('Online')
+  await page.getByRole('button', { name: 'Activate voice' }).click()
+
+  await expect(page.getByRole('status')).toHaveText(
+    'Speech recognition stopped (audio-capture), so the microphone is off. Type to CLAP instead.',
+  )
+  // Not "Press Space to talk": nothing could transcribe it.
+  await expect(page.locator('.state-sub')).toHaveText('Voice off — type, or activate voice')
+  await expect(page.getByRole('button', { name: 'Activate voice' })).toBeVisible()
+
+  await ask(page, 'still there')
+  await expect(caption(page)).toContainText('Heard: still there.')
+})

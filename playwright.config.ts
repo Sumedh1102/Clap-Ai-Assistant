@@ -30,7 +30,16 @@ export default defineConfig({
     timeout: 60_000,
   },
   projects: [
-    { name: 'chromium', use: { browserName: 'chromium' }, grepInvert: /@no-webgl/ },
+    { name: 'chromium', use: { browserName: 'chromium' }, grepInvert: /@no-webgl|@voice/ },
+    {
+      // A fake microphone, so voice activation gets as far as recognition.
+      name: 'voice',
+      use: {
+        browserName: 'chromium',
+        launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] },
+      },
+      grep: /@voice/,
+    },
     {
       name: 'no-webgl',
       use: { browserName: 'chromium', launchOptions: { args: ['--disable-webgl', '--disable-3d-apis'] } },

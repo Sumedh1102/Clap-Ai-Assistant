@@ -509,12 +509,24 @@ export class ClapController {
 
   private onEngineFailure(failure: EngineFailure, message: string): void {
     if (!this.voice) return
-    this.notify(message)
     const next = degrade(this.voice.engines, failure, {
       allowCloudWake: ENGINE_PREFERENCES.allowCloudWake,
       cloudStt: Boolean(hud.get().session.capabilities?.stt.cloud) && Boolean(this.browserCaps?.mediaRecorder),
       webSpeech: Boolean(this.browserCaps?.webSpeech),
     })
+    if (next.stt === 'none') {
+      // Nothing can transcribe any more. An open microphone and "press Space"
+      // would invite people to talk to nothing, so switch voice input off, as
+      // when a browser has no recogniser at all. Answers are still spoken.
+      this.voice.stop()
+      this.voice = null
+      this.mic.close()
+      this.publishEngines(next)
+      this.dispatch({ type: 'VOICE_DISABLED' })
+      this.notify(`${message.replace(/[.\s]+$/, '')}, so the microphone is off. Type to CLAP instead.`)
+      return
+    }
+    this.notify(message)
     this.voice.reconfigure(next)
     this.voice.setMode(recognizerMode(this.ctx))
     this.publishEngines(next)

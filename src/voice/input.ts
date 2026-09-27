@@ -285,11 +285,20 @@ export function degrade(selection: EngineSelection, failure: EngineFailure, opti
   } else if (failure === 'browser-recognition') {
     wake = 'push-to-talk'
     if (stt === 'webspeech-local' || stt === 'webspeech-cloud') stt = options.cloudStt ? 'bridge-cloud' : 'none'
-    notes.push('Browser speech recognition failed; press Space to talk.')
+    // Only offer push-to-talk if something can still transcribe it.
+    notes.push(
+      stt === 'none'
+        ? 'Browser speech recognition failed and nothing else can transcribe; type to CLAP instead.'
+        : 'Browser speech recognition failed; press Space to talk.',
+    )
   } else if (stt === 'bridge-cloud') {
     // The recogniser in use for the wake phrase (local or cloud) also takes commands.
     stt = wake === 'webspeech-local' ? 'webspeech-local' : options.webSpeech ? 'webspeech-cloud' : 'none'
-    notes.push('Cloud transcription failed; using the browser recogniser.')
+    notes.push(
+      stt === 'none'
+        ? 'Cloud transcription failed and this browser has no recogniser; type to CLAP instead.'
+        : 'Cloud transcription failed; using the browser recogniser.',
+    )
   }
   return { ...selection, wake, stt, notes }
 }
