@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { agentEnvironment, ConfigError, normalizeOrigin, parseConfig, secretValues, voiceCapabilities } from './config'
 import { parseEnv } from './env'
@@ -145,5 +146,24 @@ describe('parseEnv', () => {
       E: 'value',
       F: '',
     })
+  })
+})
+
+describe('.env.example', () => {
+  const example = readFileSync(new URL('../.env.example', import.meta.url), 'utf8')
+
+  it('documents every variable the bridge reads', () => {
+    const source = readFileSync(new URL('./config.ts', import.meta.url), 'utf8')
+    const read = new Set([...source.matchAll(/'((?:CLAP|ELEVENLABS)_[A-Z_]+)'/g)].map((m) => m[1]!))
+    for (const name of read) expect(example, name).toContain(`# ${name}=`)
+  })
+
+  it('shows defaults that parse to the defaults', () => {
+    const shown = Object.fromEntries(
+      [...example.matchAll(/^# ((?:CLAP|ELEVENLABS)_[A-Z_]+)=(.+)$/gm)].map((m) => [m[1]!, m[2]!.trim()]),
+    )
+    expect(Object.keys(shown).length).toBeGreaterThan(15)
+    const withDefaults = parseConfig({ ...shown, CLAP_LOG_FORMAT: 'json' })
+    expect(withDefaults).toEqual(parseConfig({ CLAP_LOG_FORMAT: 'json' }))
   })
 })
