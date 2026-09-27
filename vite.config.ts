@@ -76,7 +76,9 @@ export default defineConfig(({ command, mode }) => {
     build: {
       target: 'es2023',
       sourcemap: true,
-      chunkSizeWarningLimit: 1500,
+      // The 3D scene (three.js + postprocessing) is a lazy ~1 MB chunk loaded
+      // after the HUD; warn if it, or anything else, grows past that.
+      chunkSizeWarningLimit: 1100,
     },
   }
 })

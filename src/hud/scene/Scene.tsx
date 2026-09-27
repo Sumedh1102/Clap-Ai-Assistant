@@ -1,10 +1,10 @@
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer, Noise, Vignette } from '@react-three/postprocessing'
-import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Color } from 'three'
 import type { ClapController } from '../../app/controller'
-import { hud, useHud } from '../../state/store'
-import { cssColor, damp, visualFor } from '../visual'
+import { hud } from '../../state/store'
+import { damp, visualFor } from '../visual'
 import { Core } from './Core'
 import { Dust } from './Dust'
 import { createLive, type Live } from './live'
@@ -92,66 +92,33 @@ function Driver({ live, controller, reducedMotion }: { live: Live; controller: C
   return null
 }
 
-/** Shown when WebGL is unavailable or the scene crashes: the same states, in CSS. */
-function FallbackCore() {
-  const state = useHud((s) => s.assistant)
-  const v = visualFor(state)
-  return (
-    <div className="core-fallback" data-state={state} aria-hidden="true">
-      <span style={{ background: `radial-gradient(circle, ${cssColor(v.core, 0.9)} 0%, ${cssColor(v.color, 0.35)} 45%, transparent 70%)` }} />
-    </div>
-  )
-}
-
-class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  override state = { failed: false }
-  static getDerivedStateFromError() {
-    return { failed: true }
-  }
-  override componentDidCatch(error: unknown) {
-    console.error('[clap] 3D scene failed; using the fallback core', error)
-  }
-  override render() {
-    return this.state.failed ? <FallbackCore /> : this.props.children
-  }
-}
-
-function webglAvailable(): boolean {
-  try {
-    const canvas = document.createElement('canvas')
-    return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'))
-  } catch {
-    return false
-  }
-}
-
+/**
+ * The 3D core. Loaded lazily by App (it carries three.js), behind the WebGL
+ * check and error boundary in ./Fallback.
+ */
 export function Scene({ controller }: { controller: ClapController }) {
   const live = useMemo(() => createLive(), [])
   const reducedMotion = usePrefersReducedMotion()
-  const [webgl] = useState(webglAvailable)
-  if (!webgl) return <FallbackCore />
 
   return (
-    <SceneBoundary>
-      <Canvas
-        className="scene"
-        camera={{ position: [0, 0, 5.4], fov: 42 }}
-        dpr={[1, 2]}
-        gl={{ antialias: false, powerPreference: 'high-performance' }}
-        aria-hidden="true"
-      >
-        <color attach="background" args={['#05060a']} />
-        <Driver live={live} controller={controller} reducedMotion={reducedMotion} />
-        <Dust live={live} />
-        <Orbits live={live} />
-        <Ripples live={live} />
-        <Core live={live} />
-        <EffectComposer multisampling={0}>
-          <Bloom mipmapBlur intensity={1.15} luminanceThreshold={0.06} luminanceSmoothing={0.25} />
-          <Noise opacity={0.028} />
-          <Vignette offset={0.28} darkness={0.8} />
-        </EffectComposer>
-      </Canvas>
-    </SceneBoundary>
+    <Canvas
+      className="scene"
+      camera={{ position: [0, 0, 5.4], fov: 42 }}
+      dpr={[1, 2]}
+      gl={{ antialias: false, powerPreference: 'high-performance' }}
+      aria-hidden="true"
+    >
+      <color attach="background" args={['#05060a']} />
+      <Driver live={live} controller={controller} reducedMotion={reducedMotion} />
+      <Dust live={live} />
+      <Orbits live={live} />
+      <Ripples live={live} />
+      <Core live={live} />
+      <EffectComposer multisampling={0}>
+        <Bloom mipmapBlur intensity={1.15} luminanceThreshold={0.06} luminanceSmoothing={0.25} />
+        <Noise opacity={0.028} />
+        <Vignette offset={0.28} darkness={0.8} />
+      </EffectComposer>
+    </Canvas>
   )
 }

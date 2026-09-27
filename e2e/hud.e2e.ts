@@ -1,9 +1,15 @@
 import { expect, test as base, type Locator, type Page } from '@playwright/test'
 
+/** Every URL each page asked for, from its first navigation on. */
+const requested = new WeakMap<Page, string[]>()
+
 /** Every test also fails on an uncaught error or console.error in the page. */
 const test = base.extend<{ hud: Page }>({
   hud: async ({ page }, provide) => {
     const errors: string[] = []
+    const urls: string[] = []
+    requested.set(page, urls)
+    page.on('request', (request) => urls.push(request.url()))
     page.on('pageerror', (error) => errors.push(error.message))
     page.on('console', (message) => {
       if (message.type() === 'error') errors.push(message.text())
@@ -35,6 +41,11 @@ const overlaps = (a: { x: number; y: number; width: number; height: number }, b:
   a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
 
 test('connects to the bridge and answers a typed question', async ({ hud }) => {
+  // The 3D core loads after the HUD, replacing the CSS placeholder.
+  await expect(hud.locator('canvas')).toBeVisible()
+  await expect(hud.locator('.core-fallback')).toHaveCount(0)
+  // (The same URL check the no-WebGL test relies on, seen matching here.)
+  expect((requested.get(hud) ?? []).some((url) => url.includes('/hud/scene/Scene'))).toBe(true)
   await expect(stateLabel(hud)).toHaveText('ONLINE')
   await expect(hud.locator('.connection')).toContainText('scripted-agent')
   await ask(hud, 'what time is it')
@@ -117,6 +128,8 @@ test('the key hints never cover the message box', async ({ hud }) => {
 test('shows the CSS core when WebGL is unavailable @no-webgl', async ({ hud }) => {
   await expect(hud.locator('.core-fallback')).toBeVisible()
   await expect(hud.locator('canvas')).toHaveCount(0)
+  // three.js is never downloaded when it could not run.
+  expect((requested.get(hud) ?? []).filter((url) => url.includes('/hud/scene/Scene'))).toEqual([])
   await ask(hud, 'still there')
   await expect(caption(hud)).toContainText('Heard: still there.')
 })
