@@ -170,7 +170,9 @@ abandoned. Inside the bridge, turns are delivered to the agent one at a time: a
 new message is held until the previous turn's `result` arrives (capped at
 2.5 s after an interrupt), because the probe showed an interrupted turn keeps
 streaming until that point and a message delivered mid-turn can be folded into
-it.
+it. A turn still unsettled at the cap is abandoned: its late result, and frames
+once one of them identifies the turn, are dropped rather than attributed to the
+turn that replaced it.
 
 ---
 
@@ -213,7 +215,7 @@ IDLE ──activate──▶ LISTENING_FOR_WAKE ──wake──▶ WAKE_DETECTE
   speech plays (a bug the reference hit).
 - A turn ends only when the bridge has sent `turn_complete` **and** the speech
   queue has drained. The machine then enters `LISTENING` for a follow-up window
-  (default 8 s) so a conversation does not need the wake phrase every time.
+  (default 7 s) so a conversation does not need the wake phrase every time.
 
 ### Barge-in
 
@@ -227,8 +229,10 @@ does the same. Escape stands down to the resting state.
 ### Recogniser mode
 
 Each state implies a mode for the voice input: `off` (OFFLINE, IDLE), `wake`
-(LISTENING_FOR_WAKE), `command` (WAKE_DETECTED, LISTENING, CONFIRMING), `guard`
-(THINKING, EXECUTING, SPEAKING). In `wake` mode nothing leaves the machine
+(LISTENING_FOR_WAKE, and ERROR when no turn is in flight), `command`
+(WAKE_DETECTED, LISTENING, CONFIRMING), `guard` (THINKING, EXECUTING,
+SPEAKING). The machine accepts the wake phrase exactly when the mode is
+`wake`. In `wake` mode nothing leaves the machine
 unless a local engine is unavailable and the user allowed the browser's cloud
 recogniser. VAD segments captured in `wake` or `guard` mode are discarded, never
 uploaded.
@@ -409,11 +413,11 @@ external MCP servers; each lands with its risk metadata and tests.
 |---|---|
 | Bind `127.0.0.1` by default | `bridge/server.ts` |
 | `Host` header must be an allowed loopback name (DNS-rebinding defence) | `security/http-guard.ts` |
-| Exact `Origin` allowlist for WS and HTTP; no-Origin sockets refused unless `CLAP_ALLOW_NO_ORIGIN=1` | `security/http-guard.ts` |
+| Exact `Origin` allowlist for WS and HTTP; no-Origin sockets refused unless `CLAP_ALLOW_NO_ORIGIN=1`; CORS reflects only allowlisted origins (never `*` or `null`) | `security/http-guard.ts` |
 | WS path fixed to `/ws`; 64 KiB message cap; per-connection token bucket | `connection.ts` |
 | zod validation of every inbound message and tool input | `shared/protocol.ts`, `tools/registry.ts` |
-| SSRF: scheme allowlist, blocked private/loopback/link-local/CGNAT/metadata ranges (v4, v6, v4-mapped), single DNS resolution per connection, manual redirect vetting, byte caps, timeouts | `security/ssrf.ts` |
-| Path containment with realpath resolution | `security/paths.ts` |
+| SSRF: scheme allowlist, blocked private/loopback/link-local/CGNAT/metadata ranges (v4, v4-embedding v6 forms; other v6 only in global unicast 2000::/3), single DNS resolution per connection, manual redirect vetting, byte caps after decompression, timeouts | `security/ssrf.ts` |
+| Path containment with realpath resolution; new paths need a real parent in a root, dangling symlinks refused | `security/paths.ts` |
 | Default-deny tool gate in `PreToolUse`; unscoped built-ins disabled; `settingSources: []`; `strictMcpConfig` | `permissions.ts`, `agent/runtime.ts` |
 | Brokered single-use confirmations for HIGH risk | `permissions.ts` |
 | Secrets only in bridge env; stripped from the agent subprocess env; never logged | `config.ts`, `logger.ts` |

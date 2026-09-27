@@ -28,6 +28,8 @@ Claude answer to a typed message.
   `web_fetch`, built-in `WebSearch`
 - ✅ CLAP personality file
 - ✅ `setup`, `doctor`, `start` scripts; `.env.example`; README
+- ✅ Tests: every security primitive and pure module, the agent runtime
+  against a scripted SDK, and the bridge over real HTTP and WebSocket
 
 **Verify:** `npm run doctor` passes; `npm start`; type a question; the answer
 streams into the transcript; the HUD moves THINKING → SPEAKING/IDLE.
@@ -49,6 +51,8 @@ Goal: speak to CLAP and hear it answer, with barge-in.
 - ✅ Barge-in (VAD onset, override words, Space), echo filter, word-aware
   endpointing, follow-up window
 - ✅ Audio-reactive HUD states
+- ✅ Voice logic unit-tested (state machine, confirmation intents, wake
+  matching, VAD, endpointing, echo filter, engine selection, speaker)
 
 **Verify:** "Hey CLAP, what time is it?" → spoken answer; talk over the answer →
 it stops within ~150 ms and takes the new question; deny the microphone → text
@@ -61,8 +65,8 @@ Goal: CLAP speaks in its own voice.
 - ✅ `npm run voice:inspect -- <file>` reports format, duration, sample rate,
   channels, level, clipping and silence, and judges suitability for cloning
 - ✅ ElevenLabs adapter behind `VoiceProvider` (`CLAP_VOICE_ID`)
-- ⬜ Inspect the supplied voice sample (none was attached to the first
-  request — see `docs/voice.md`)
+- ⬜ Inspect the supplied voice sample (none has been supplied yet — the
+  workflow is in `docs/voice.md`)
 - ⬜ Preprocess if needed (trim silence, normalise to −1 dBFS peak, mono
   44.1 kHz WAV, remove music/noise)
 - ⬜ Create the voice (ElevenLabs Instant Voice Cloning needs roughly 1–2
@@ -122,5 +126,7 @@ Goal: CLAP speaks in its own voice.
 - The ElevenLabs adapter was written against the endpoints the reference
   project uses; this development environment could not reach elevenlabs.io, so
   it is covered by unit tests with a mocked upstream only.
+- `voice:inspect` reads WAV itself and other formats through ffmpeg; ffmpeg was
+  not installed in the development environment, so that path is unverified.
 - Conversation context lives in the agent session; it survives page reloads and
   short disconnects, but not a bridge restart (by design until Phase 5 memory).
